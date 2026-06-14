@@ -18,7 +18,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const data = await request.json()
     const truck = await updateTruck(id, data)
     return NextResponse.json(truck)
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Failed to update truck' }, { status: 500 })
   }
 }
@@ -31,7 +31,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     await deleteTruck(id)
     return NextResponse.json({ ok: true })
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Failed to delete truck' }, { status: 500 })
   }
 }

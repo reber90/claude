@@ -13,8 +13,8 @@ export default function TruckCard({ truck }: TruckCardProps) {
 
   return (
     <div className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden flex flex-col group border border-slate-100">
-      {/* Image */}
-      <div className="relative h-52 bg-slate-100 overflow-hidden">
+      {/* Image (tap to open the listing) */}
+      <Link href={`/inventory/${truck.id}`} className="relative h-52 bg-slate-100 overflow-hidden block">
         {primaryImage ? (
           <Image
             src={primaryImage}
@@ -40,7 +40,7 @@ export default function TruckCard({ truck }: TruckCardProps) {
         <span className="absolute top-3 right-3 bg-[#0f172a]/80 text-white text-xs px-2 py-1 rounded-full">
           {truck.condition}
         </span>
-      </div>
+      </Link>
 
       {/* Content */}
       <div className="p-5 flex flex-col flex-1">

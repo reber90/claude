@@ -42,16 +42,16 @@ export default async function InventoryPage({ searchParams }: Props) {
   return (
     <div className="bg-slate-50 min-h-screen">
       {/* Page header */}
-      <div className="bg-[#0f172a] py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2">Browse Our Inventory</h1>
-          <p className="text-slate-400">
+      <div className="bg-[#0f172a] py-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+          <h1 className="text-base font-bold text-white">Inventory</h1>
+          <p className="text-slate-400 text-sm">
             {trucks.length} truck{trucks.length !== 1 ? 's' : ''} available
           </p>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Filters */}
         <InventoryFilters makes={makes} current={params} />
 

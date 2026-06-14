@@ -1,18 +1,36 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { Menu, X, Truck } from 'lucide-react'
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const pathname = usePathname()
+
+  // The admin area has its own chrome, so keep the public header off it
+  if (pathname.startsWith('/admin')) return null
+
+  const navLink = (href: string, label: string) => {
+    const active = pathname === href || (href === '/inventory' && pathname.startsWith('/inventory'))
+    return (
+      <Link
+        href={href}
+        onClick={() => setMenuOpen(false)}
+        className={`transition-colors text-sm font-medium ${active ? 'text-[#f59e0b]' : 'text-slate-300 hover:text-[#f59e0b]'}`}
+      >
+        {label}
+      </Link>
+    )
+  }
 
   return (
     <header className="bg-[#0f172a] shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
+          {/* Logo goes to the main page */}
+          <Link href="/inventory" className="flex items-center gap-2 group">
             <div className="bg-[#f59e0b] rounded-lg p-1.5">
               <Truck className="w-5 h-5 text-[#0f172a]" />
             </div>
@@ -23,21 +41,8 @@ export default function Header() {
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8">
-            <Link href="/" className="text-slate-300 hover:text-[#f59e0b] transition-colors text-sm font-medium">
-              Home
-            </Link>
-            <Link href="/inventory" className="text-slate-300 hover:text-[#f59e0b] transition-colors text-sm font-medium">
-              Inventory
-            </Link>
-            <Link href="/contact" className="text-slate-300 hover:text-[#f59e0b] transition-colors text-sm font-medium">
-              Contact
-            </Link>
-            <Link
-              href="/inventory"
-              className="bg-[#f59e0b] text-[#0f172a] px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-400 transition-colors"
-            >
-              Browse Trucks
-            </Link>
+            {navLink('/inventory', 'Inventory')}
+            {navLink('/contact', 'Contact')}
           </nav>
 
           {/* Mobile hamburger */}
@@ -55,34 +60,8 @@ export default function Header() {
       {menuOpen && (
         <div className="md:hidden bg-[#0f172a] border-t border-slate-700">
           <div className="px-4 py-4 flex flex-col gap-4">
-            <Link
-              href="/"
-              className="text-slate-300 hover:text-[#f59e0b] transition-colors font-medium"
-              onClick={() => setMenuOpen(false)}
-            >
-              Home
-            </Link>
-            <Link
-              href="/inventory"
-              className="text-slate-300 hover:text-[#f59e0b] transition-colors font-medium"
-              onClick={() => setMenuOpen(false)}
-            >
-              Inventory
-            </Link>
-            <Link
-              href="/contact"
-              className="text-slate-300 hover:text-[#f59e0b] transition-colors font-medium"
-              onClick={() => setMenuOpen(false)}
-            >
-              Contact
-            </Link>
-            <Link
-              href="/inventory"
-              className="bg-[#f59e0b] text-[#0f172a] px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-400 transition-colors text-center"
-              onClick={() => setMenuOpen(false)}
-            >
-              Browse Trucks
-            </Link>
+            {navLink('/inventory', 'Inventory')}
+            {navLink('/contact', 'Contact')}
           </div>
         </div>
       )}

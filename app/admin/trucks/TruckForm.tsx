@@ -4,7 +4,7 @@ import { useState, useRef, ChangeEvent, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Truck } from '@/lib/types'
-import { Upload, X, AlertCircle, CheckCircle } from 'lucide-react'
+import { ImagePlus, X, AlertCircle, CheckCircle, Loader2, Star } from 'lucide-react'
 
 const CONDITIONS = ['Excellent', 'Good', 'Fair', 'Parts Only'] as const
 const TRANSMISSIONS = ['Automatic', 'Manual'] as const
@@ -17,6 +17,44 @@ const ALL_FEATURES = [
   'Apple CarPlay/Android Auto', 'Lane Departure Warning', 'Blind Spot Monitor',
   'Parking Sensors', 'Remote Start', '4WD Lock',
 ]
+
+// Resize to a max of 1280px on the long side and save as JPEG at 80% quality.
+// Keeps photos sharp while bringing a typical phone shot down to a few hundred KB,
+// so listings load fast even on a weak connection and uploads finish quickly.
+function compressImage(file: File, maxDim = 1280, quality = 0.8): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('Could not read file'))
+    reader.onload = (e) => {
+      const img = new window.Image()
+      img.onerror = () => reject(new Error('Not a valid image'))
+      img.onload = () => {
+        let { width, height } = img
+        if (width > maxDim || height > maxDim) {
+          const scale = maxDim / Math.max(width, height)
+          width = Math.round(width * scale)
+          height = Math.round(height * scale)
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return reject(new Error('Canvas not supported'))
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return reject(new Error('Compression failed'))
+            resolve(new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' }))
+          },
+          'image/jpeg',
+          quality,
+        )
+      }
+      img.src = e.target?.result as string
+    }
+    reader.readAsDataURL(file)
+  })
+}
 
 interface Props {
   truck?: Truck
@@ -53,6 +91,7 @@ export default function TruckForm({ truck }: Props) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+  const [compressing, setCompressing] = useState(false)
   const [dragOver, setDragOver] = useState(false)
 
   function handleChange(e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
@@ -67,16 +106,32 @@ export default function TruckForm({ truck }: Props) {
     setFeatures((prev) => prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f])
   }
 
-  function addImageFiles(files: FileList | null) {
+  async function addImageFiles(files: FileList | null) {
     if (!files) return
     const arr = Array.from(files).filter((f) => f.type.startsWith('image/'))
-    setNewImageFiles((prev) => [...prev, ...arr])
-    arr.forEach((f) => {
-      const reader = new FileReader()
-      reader.onload = (e) => setNewImagePreviews((prev) => [...prev, e.target?.result as string])
-      reader.readAsDataURL(f)
-    })
+    if (arr.length === 0) return
+    setError('')
+    setCompressing(true)
+    try {
+      for (const f of arr) {
+        const compressed = await compressImage(f)
+        setNewImageFiles((prev) => [...prev, compressed])
+        const reader = new FileReader()
+        reader.onload = (e) => setNewImagePreviews((prev) => [...prev, e.target?.result as string])
+        reader.readAsDataURL(compressed)
+      }
+    } catch {
+      setError('Something went wrong while processing the photos. Please try again.')
+    } finally {
+      setCompressing(false)
+    }
   }
+
+  // All photos combined, in display order. The first one is the main photo.
+  const allPreviews = [
+    ...existingImages.map((url) => ({ kind: 'existing' as const, src: url })),
+    ...newImagePreviews.map((src) => ({ kind: 'new' as const, src })),
+  ]
 
   function removeNewImage(index: number) {
     setNewImageFiles((prev) => prev.filter((_, i) => i !== index))
@@ -89,17 +144,17 @@ export default function TruckForm({ truck }: Props) {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    if (compressing) return
     setError('')
     setSuccess('')
     setLoading(true)
 
     try {
-      // 1. Upload new images first
+      // Upload the compressed photos first
       const uploadedUrls: string[] = []
       for (const file of newImageFiles) {
         const fd = new FormData()
         fd.append('file', file)
-        // Use a placeholder truck ID for new trucks, or real ID for edits
         const truckId = truck?.id || 'temp'
         const imgRes = await fetch(`/api/trucks/${truckId}/images`, {
           method: 'POST',
@@ -118,8 +173,8 @@ export default function TruckForm({ truck }: Props) {
         make: form.make,
         model: form.model,
         year: parseInt(form.year),
-        price: form.price ? parseFloat(form.price) : null,
-        mileage: form.mileage ? parseInt(form.mileage) : null,
+        price: form.price ? Math.max(0, parseFloat(form.price)) : null,
+        mileage: form.mileage ? Math.max(0, parseInt(form.mileage)) : null,
         condition: form.condition,
         transmission: form.transmission,
         fuel_type: form.fuel_type,
@@ -148,8 +203,8 @@ export default function TruckForm({ truck }: Props) {
         throw new Error(data.error || 'Failed to save truck')
       }
 
-      setSuccess(isEdit ? 'Truck updated successfully!' : 'Truck added successfully!')
-      setTimeout(() => router.push('/admin/dashboard'), 1500)
+      setSuccess(isEdit ? 'Truck updated successfully' : 'Truck added successfully')
+      setTimeout(() => router.push('/admin/dashboard'), 1200)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -184,7 +239,7 @@ export default function TruckForm({ truck }: Props) {
           </div>
           <div>
             <label className={labelCls}>Price ($)</label>
-            <input name="price" type="number" value={form.price} onChange={handleChange} min="0" step="100" className={inputCls} placeholder="Leave blank for 'Price on Request'" />
+            <input name="price" type="number" value={form.price} onChange={handleChange} min="0" step="100" className={inputCls} placeholder="Leave blank for 'No Price'" />
           </div>
           <div>
             <label className={labelCls}>Mileage</label>
@@ -245,7 +300,7 @@ export default function TruckForm({ truck }: Props) {
           onChange={handleChange}
           rows={5}
           className={inputCls}
-          placeholder="Describe the truck, its history, any notable features or upgrades…"
+          placeholder="Describe the truck, its history, any notable features or upgrades"
         />
       </div>
 
@@ -269,75 +324,74 @@ export default function TruckForm({ truck }: Props) {
         </div>
       </div>
 
-      {/* Images */}
+      {/* Photos */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
         <h2 className="font-bold text-[#0f172a] mb-5 text-lg">Photos</h2>
 
-        {/* Existing images */}
-        {existingImages.length > 0 && (
-          <div className="mb-4">
-            <p className="text-sm text-slate-500 mb-2">Current photos</p>
-            <div className="flex flex-wrap gap-3">
-              {existingImages.map((url) => (
-                <div key={url} className="relative w-24 h-20 rounded-lg overflow-hidden border border-slate-200 group">
-                  <Image src={url} alt="" fill className="object-cover" sizes="96px" />
-                  <button
-                    type="button"
-                    onClick={() => removeExistingImage(url)}
-                    className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="w-5 h-5 text-white" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* New image previews */}
-        {newImagePreviews.length > 0 && (
-          <div className="mb-4">
-            <p className="text-sm text-slate-500 mb-2">New photos to upload</p>
-            <div className="flex flex-wrap gap-3">
-              {newImagePreviews.map((src, i) => (
-                <div key={i} className="relative w-24 h-20 rounded-lg overflow-hidden border border-[#f59e0b]/50 group">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt="" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => removeNewImage(i)}
-                    className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="w-5 h-5 text-white" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Drop zone */}
+        {/* Upload zone: opens camera or gallery on phone */}
         <div
           onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
           onDragLeave={() => setDragOver(false)}
           onDrop={(e) => { e.preventDefault(); setDragOver(false); addImageFiles(e.dataTransfer.files) }}
-          onClick={() => fileRef.current?.click()}
-          className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
-            dragOver ? 'border-[#f59e0b] bg-[#f59e0b]/5' : 'border-slate-300 hover:border-slate-400'
+          onClick={() => { if (!compressing) fileRef.current?.click() }}
+          className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-2xl py-8 cursor-pointer transition-colors ${
+            compressing ? 'border-[#f59e0b] bg-[#f59e0b]/5' : dragOver ? 'border-[#f59e0b] bg-[#f59e0b]/5' : 'border-slate-300 hover:border-[#f59e0b] hover:bg-[#f59e0b]/5'
           }`}
         >
-          <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-          <p className="text-slate-600 font-medium text-sm">Drop photos here or click to upload</p>
-          <p className="text-slate-400 text-xs mt-1">PNG, JPG, WEBP up to 10MB each</p>
+          {compressing ? (
+            <>
+              <Loader2 className="w-7 h-7 text-[#f59e0b] animate-spin" />
+              <p className="text-sm font-medium text-slate-600">Optimizing photos</p>
+            </>
+          ) : (
+            <>
+              <ImagePlus className="w-7 h-7 text-[#f59e0b]" />
+              <p className="text-sm font-medium text-slate-700">Tap to add photos</p>
+              <p className="text-xs text-slate-400">From your camera or gallery. Photos are optimized automatically.</p>
+            </>
+          )}
           <input
             ref={fileRef}
             type="file"
             accept="image/*"
             multiple
             className="hidden"
-            onChange={(e) => addImageFiles(e.target.files)}
+            onChange={(e) => { addImageFiles(e.target.files); e.target.value = '' }}
           />
         </div>
+
+        {/* Thumbnail grid: main photo first, remove or reorder */}
+        {allPreviews.length > 0 && (
+          <>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mt-4">
+              {allPreviews.map((item, i) => (
+                <div key={`${item.kind}-${i}`} className="relative group rounded-xl overflow-hidden border border-slate-200" style={{ aspectRatio: '4 / 3' }}>
+                  {item.kind === 'existing' ? (
+                    <Image src={item.src} alt="" fill className="object-cover" sizes="160px" />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={item.src} alt="" className="w-full h-full object-cover" />
+                  )}
+                  {i === 0 && (
+                    <span className="absolute bottom-1.5 left-1.5 bg-[#f59e0b] text-[#0f172a] text-xs font-bold px-1.5 py-0.5 rounded-full">Main</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => item.kind === 'existing' ? removeExistingImage(item.src) : removeNewImage(i - existingImages.length)}
+                    className="absolute top-1.5 right-1.5 bg-black/60 text-white rounded-full p-1 hover:bg-red-500 transition-colors"
+                    aria-label="Remove photo"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-slate-400 mt-2 flex items-center gap-1">
+              <Star className="w-3 h-3 text-[#f59e0b]" />
+              The first photo is the main one shown on the listing.
+            </p>
+          </>
+        )}
       </div>
 
       {/* Toggles */}
@@ -366,8 +420,8 @@ export default function TruckForm({ truck }: Props) {
               className="w-5 h-5 accent-[#f59e0b] rounded"
             />
             <div>
-              <span className="font-medium text-[#0f172a] text-sm">Featured on Homepage</span>
-              <p className="text-slate-400 text-xs">Highlight this truck on the homepage</p>
+              <span className="font-medium text-[#0f172a] text-sm">Featured</span>
+              <p className="text-slate-400 text-xs">Show a Featured badge on this listing</p>
             </div>
           </label>
         </div>
@@ -391,10 +445,10 @@ export default function TruckForm({ truck }: Props) {
       <div className="flex items-center gap-4">
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || compressing}
           className="bg-[#f59e0b] text-[#0f172a] px-8 py-3 rounded-xl font-bold hover:bg-amber-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {loading ? 'Saving…' : isEdit ? 'Update Truck' : 'Add Truck'}
+          {compressing ? 'Wait for photos' : loading ? 'Saving' : isEdit ? 'Update Truck' : 'Add Truck'}
         </button>
         <button
           type="button"

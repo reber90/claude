@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   try {
     const trucks = await getTrucks(filters)
     return NextResponse.json(trucks)
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Failed to fetch trucks' }, { status: 500 })
   }
 }
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     const data = await request.json()
     const truck = await createTruck(data)
     return NextResponse.json(truck, { status: 201 })
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Failed to create truck' }, { status: 500 })
   }
 }

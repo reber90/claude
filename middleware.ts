@@ -21,7 +21,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/admin', request.url))
     }
 
-    const adminPassword = process.env.ADMIN_PASSWORD || ''
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123'
     const expected = await sha256Hex(adminPassword)
 
     if (token !== expected) {

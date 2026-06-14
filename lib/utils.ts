@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatPrice(price: number | null): string {
-  if (!price) return 'Price on Request'
+  if (!price) return 'No Price'
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',

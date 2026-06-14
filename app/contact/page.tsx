@@ -5,14 +5,13 @@ export const metadata = { title: 'Contact Us' }
 export default function ContactPage() {
   return (
     <div className="bg-slate-50 min-h-screen">
-      <div className="bg-[#0f172a] py-12">
+      <div className="bg-[#0f172a] py-3">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2">Contact Us</h1>
-          <p className="text-slate-400">We&apos;re here to help you find the perfect truck.</p>
+          <h1 className="text-base font-bold text-white">Contact Us</h1>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
           {/* Info */}
           <div className="space-y-6">

@@ -14,7 +14,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     const url = await uploadImage(file, id)
     return NextResponse.json({ url })
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
   }
 }
@@ -27,7 +27,7 @@ export async function DELETE(request: NextRequest) {
   try {
     await deleteImage(url)
     return NextResponse.json({ ok: true })
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Delete failed' }, { status: 500 })
   }
 }

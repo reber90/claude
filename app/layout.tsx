@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import Header from './components/Header'
@@ -11,7 +11,15 @@ export const metadata: Metadata = {
     default: 'TruckDeal - Find Your Perfect Truck',
     template: '%s | TruckDeal',
   },
-  description: 'Browse our premium selection of quality pre-owned trucks. Work trucks, lifted trucks, and commercial vehicles.',
+  description: 'Browse our selection of quality pre owned trucks. Work trucks, lifted trucks, and commercial vehicles.',
+}
+
+// Lock the layout on mobile: fixed width, no pinch zoom
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 }
 
 export default function RootLayout({
@@ -21,7 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={inter.className}>
-      <body className="min-h-screen flex flex-col bg-white text-slate-900">
+      <body className="min-h-screen flex flex-col bg-white text-slate-900 overflow-x-hidden">
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
